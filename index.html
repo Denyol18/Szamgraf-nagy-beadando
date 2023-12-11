@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- Jelenet: The Batman - Autós üldözés https://youtu.be/QT9p0tCiIPc?t=34 -->
+<head>
+    <meta charset="UTF-8">
+    <title>Nagy beadando</title>
+    <style>
+        body {margin: 0; overflow: hidden;}
+        canvas {width: 100%; height: 100%}
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white
+        }
+    </style>
+</head>
+<body>
+
+<div id="controls">
+    A színtér az egér segítségével körbeforgatható, minden eleme megtekinthető. <br/><br/>
+
+    Használható billentyűk és funkcióik: <br/><br/>
+
+    1 - Lámpa ki- és bekapcsolása <br/>
+    2 - Fényszórók ki- és bekapcsolása <br/>
+    3 - Éjszakára/Nappalra váltás <br/>
+    W - Batmobile előre mozgatása (Maximum Y koordináta: 100)<br/>
+    S - Batmobile hátra fele mozgatása (Minimum Y koordináta: -20)<br/>
+    I - Szöveges információk elrejtése/előhozása
+</div>
+
+<script async src="./dist/es-module-shims.js"></script>
+<script type="importmap">
+    {
+        "imports": {
+            "three": "./js-r154/build/three.module.js",
+            "TrackballControls": "./js-r154/examples/jsm/controls/TrackballControls.js",
+            "GLTFLoader": "./js-r154/examples/jsm/loaders/GLTFLoader.js"
+        }
+    }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import {TrackballControls} from 'TrackballControls';
+    import {GLTFLoader} from 'GLTFLoader';
+
+    // Globális változók
+    let WIDTH, HEIGHT, aspectRatio;
+    let renderer;
+    let scene, camera;
+    let controls;
+
+    let penguinGroup = new THREE.Group();
+    let batmobileGroup = new THREE.Group();
+    let gantryGroup = new THREE.Group();
+
+    let turned = false;
+    let reverse = false;
+    let turnedBack = false;
+    let idx = 0;
+
+    let lampLight = new THREE.PointLight;
+    let batLight1, batLight2 = new THREE.SpotLight;
+    let ambientLight = new THREE.AmbientLight;
+
+    let controlsDiv, controlsText;
+
+    let clock = new THREE.Clock();
+
+
+    init();
+
+
+    function init() {
+        // Szovegek elmentese
+        controlsDiv = document.getElementById('controls');
+
+        controlsText = controlsDiv.innerHTML;
+
+        // Bongeszo ablakmeret, meretarany szamitas
+        HEIGHT = window.innerHeight;
+        WIDTH = window.innerWidth;
+        aspectRatio = WIDTH / HEIGHT;
+
+        // Renderer
+        renderer = new THREE.WebGLRenderer({antialias: true});
+        renderer.setSize(WIDTH, HEIGHT);
+        renderer.setClearColor(0x87ceeb, 1.0);
+        document.body.appendChild(renderer.domElement);
+
+        // Szinter
+        scene = new THREE.Scene();
+
+        // Kamera
+        camera = new THREE.PerspectiveCamera(75, aspectRatio, 0.1, 1000);
+        camera.position.y = -200;
+        camera.position.z = 75;
+
+        // Geometriak - begin
+
+        // Blender object hozzaadasa
+        loader();
+
+        // Lampa geometria es material
+        let lampGeometry = new THREE.BoxGeometry(5, 5, 2);
+        let lampMaterial = new THREE.MeshPhongMaterial({color: 0xffffff});
+
+        // Batmobile:
+        let batmobileGeometry = new THREE.BoxGeometry(32, 50, 10);
+        let batmobileMaterial = new THREE.MeshPhongMaterial({color: 0x000000});
+        let batmobileMesh = new THREE.Mesh(batmobileGeometry, batmobileMaterial);
+        batmobileMesh.position.set(-75, -95, 8);
+        batmobileMesh.rotation.set(0, 0, -0.2);
+        batmobileMesh.scale.set(1.2, 1.2, 1.2);
+        batmobileMesh.castShadow = true;
+        batmobileMesh.receiveShadow = true;
+
+        let batWheelGeometry_1 = new THREE.BoxGeometry(36, 8, 7.4);
+        let batWheelMaterial_1 = new THREE.MeshPhongMaterial({color: 0x333333});
+        let batWheelMesh_1 = new THREE.Mesh(batWheelGeometry_1, batWheelMaterial_1);
+        batWheelMesh_1.position.set(-72, -80, 4.5);
+        batWheelMesh_1.rotation.set(0, 0, -0.2);
+        batWheelMesh_1.scale.set(1.2, 1.2, 1.2);
+        batWheelMesh_1.castShadow = true;
+        batWheelMesh_1.receiveShadow = true;
+
+        let batWheelGeometry_2 = new THREE.BoxGeometry(36, 8, 7.4);
+        let batWheelMaterial_2 = new THREE.MeshPhongMaterial({color: 0x333333});
+        let batWheelMesh_2 = new THREE.Mesh(batWheelGeometry_2, batWheelMaterial_2);
+        batWheelMesh_2.position.set(-78, -110, 4.5);
+        batWheelMesh_2.rotation.set(0, 0, -0.2);
+        batWheelMesh_2.scale.set(1.2, 1.2, 1.2);
+        batWheelMesh_2.castShadow = true;
+        batWheelMesh_2.receiveShadow = true;
+
+        let batCabinGeometry = new THREE.BoxGeometry(24, 32, 16);
+        let batCabinMaterial = new THREE.MeshPhongMaterial({color: 0x363636});
+        let batCabinMesh = new THREE.Mesh(batCabinGeometry, batCabinMaterial);
+        batCabinMesh.position.set(-76, -100, 12);
+        batCabinMesh.rotation.set(0, 0, -0.2);
+        batCabinMesh.scale.set(1.2, 1.2, 1.2);
+        batCabinMesh.castShadow = true;
+        batCabinMesh.receiveShadow = true;
+
+        let batLampMesh_1 = new THREE.Mesh(lampGeometry, lampMaterial);
+        batLampMesh_1.rotation.set(1.5, -0.2, 0);
+        batLampMesh_1.position.set(-80, -62.5, 8);
+        batLampMesh_1.castShadow = true;
+        batLampMesh_1.receiveShadow = true;
+
+        let batLampMesh_2 = new THREE.Mesh(lampGeometry, lampMaterial);
+        batLampMesh_2.rotation.set(1.5, -0.2, 0);
+        batLampMesh_2.position.set(-58, -67, 8);
+        batLampMesh_2.castShadow = true;
+        batLampMesh_2.receiveShadow = true;
+
+
+        // Meshek egy csoportba foglalasa
+        batmobileGroup.add(batmobileMesh);
+        batmobileGroup.add(batWheelMesh_1);
+        batmobileGroup.add(batWheelMesh_2);
+        batmobileGroup.add(batCabinMesh);
+        batmobileGroup.add(batLampMesh_1);
+        batmobileGroup.add(batLampMesh_2);
+        batmobileGroup.position.set(-50, 0, 0);
+        batmobileGroup.rotation.set(0, 0, 0.2);
+        scene.add(batmobileGroup);
+
+
+        // Penguin autoja:
+        let penguinGeometry = new THREE.BoxGeometry(32, 50, 10);
+        let penguinMaterial = new THREE.MeshPhongMaterial({color: 0x5c0380});
+        let penguinMesh = new THREE.Mesh(penguinGeometry, penguinMaterial);
+        penguinMesh.castShadow = true;
+        penguinMesh.receiveShadow = true;
+        penguinMesh.position.set(25, 25, 8);
+        penguinMesh.rotation.set(0, 0, 0.2);
+
+        let pengWheelGeometry_1 = new THREE.BoxGeometry(36, 8, 7.5);
+        let pengWheelMaterial_1 = new THREE.MeshPhongMaterial({color: 0x333333});
+        let pengWheelMesh_1 = new THREE.Mesh(pengWheelGeometry_1, pengWheelMaterial_1);
+        pengWheelMesh_1.castShadow = true;
+        pengWheelMesh_1.receiveShadow = true;
+        pengWheelMesh_1.position.set(22, 40, 4);
+        pengWheelMesh_1.rotation.set(0, 0, 0.2);
+
+        let pengWheelGeometry_2 = new THREE.BoxGeometry(36, 8, 7.5);
+        let pengWheelMaterial_2 = new THREE.MeshPhongMaterial({color: 0x333333});
+        let pengWheelMesh_2 = new THREE.Mesh(pengWheelGeometry_2, pengWheelMaterial_2);
+        pengWheelMesh_2.castShadow = true;
+        pengWheelMesh_2.receiveShadow = true;
+        pengWheelMesh_2.position.set(28, 10, 4);
+        pengWheelMesh_2.rotation.set(0, 0, 0.2);
+
+        let pengCabinGeometry = new THREE.BoxGeometry(24, 32, 12);
+        let pengCabinMaterial = new THREE.MeshPhongMaterial({color: 0x9f07db});
+        let pengCabinMesh = new THREE.Mesh(pengCabinGeometry, pengCabinMaterial);
+        pengCabinMesh.castShadow = true;
+        pengCabinMesh.receiveShadow = true;
+        pengCabinMesh.position.set(26, 20, 12);
+        pengCabinMesh.rotation.set(0, 0, 0.2);
+
+        // Meshek egy csoportba foglalasa
+        penguinGroup.add(penguinMesh);
+        penguinGroup.add(pengWheelMesh_1);
+        penguinGroup.add(pengWheelMesh_2);
+        penguinGroup.add(pengCabinMesh);
+        penguinGroup.position.set(25, -155, 0);
+        penguinGroup.rotation.set(0, 0, 0.2);
+        scene.add(penguinGroup);
+
+
+        // Ut geometria
+        let roadGeometry = new THREE.PlaneGeometry(100, 100);
+        let roadMaterial = new THREE.MeshLambertMaterial({color: 0x6e6e6e, side: THREE.DoubleSide});
+        let roadMesh = new THREE.Mesh(roadGeometry, roadMaterial);
+        roadMesh.receiveShadow = true;
+        roadMesh.position.set(-30, -10, 0);
+        roadMesh.scale.set(3, 3, 3);
+        scene.add(roadMesh);
+
+
+        // Boja geometriak
+        let coneGeometry = new THREE.CylinderGeometry(7, 7, 15, 15);
+        let coneMaterial = new THREE.MeshPhongMaterial();
+
+        let coneMesh = new THREE.Mesh(coneGeometry, coneMaterial);
+        coneMesh.castShadow = true;
+        coneMesh.receiveShadow = true;
+        coneMesh.rotation.set(1, 1.5, 0.5);
+        coneMesh.position.set(-30, 85, 8);
+
+        let coneMesh_1 = new THREE.Mesh(coneGeometry, coneMaterial);
+        coneMesh_1.castShadow = true;
+        coneMesh_1.receiveShadow = true;
+        coneMesh_1.rotation.set(1, 1.5, 0.5);
+        coneMesh_1.position.set(-30, 105, 8);
+
+        let coneMesh_2 = new THREE.Mesh(coneGeometry, coneMaterial);
+        coneMesh_2.castShadow = true;
+        coneMesh_2.receiveShadow = true;
+        coneMesh_2.rotation.set(1, 1.5, 0.5);
+        coneMesh_2.position.set(-30, 125, 8);
+
+        let coneMesh_3 = new THREE.Mesh(coneGeometry, coneMaterial);
+        coneMesh_3.castShadow = true;
+        coneMesh_3.receiveShadow = true;
+        coneMesh_3.rotation.set(1, 1.5, 0.5);
+        coneMesh_3.position.set(-120, 125, 8);
+
+        scene.add(coneMesh);
+        scene.add(coneMesh_1);
+        scene.add(coneMesh_2);
+        scene.add(coneMesh_3);
+
+
+        // Lampa pozna geometriak
+        let lamppostGeometry_part1 = new THREE.BoxGeometry(10, 80, 5);
+        let lamppostMaterial_part1 = new THREE.MeshPhongMaterial({color: 0x8c8f8d});
+
+        let lamppostMesh_part1 = new THREE.Mesh(lamppostGeometry_part1, lamppostMaterial_part1);
+        lamppostMesh_part1.castShadow = true;
+        lamppostMesh_part1.receiveShadow = true;
+        lamppostMesh_part1.position.set(-175, -30, 40);
+        lamppostMesh_part1.rotation.set(1.5, 1.5, 0);
+
+
+        let lamppostGeometry_part2 = new THREE.BoxGeometry(40, 10, 5);
+        let lamppostMaterial_part2 = new THREE.MeshPhongMaterial({color: 0x8c8f8d});
+
+        let lamppostMesh_part2 = new THREE.Mesh(lamppostGeometry_part2, lamppostMaterial_part2);
+        lamppostMesh_part2.castShadow = true;
+        lamppostMesh_part2.receiveShadow = true;
+        lamppostMesh_part2.position.set(-155, -27, 80);
+
+        let lampMesh = new THREE.Mesh(lampGeometry, lampMaterial);
+        lampMesh.castShadow = true;
+        lampMesh.receiveShadow = true;
+        lampMesh.position.set(-145, -27, 77);
+
+        scene.add(lamppostMesh_part1);
+        scene.add(lamppostMesh_part2);
+        scene.add(lampMesh);
+
+        // Geometriak - end
+
+
+        // Fenyek - begin
+
+        // Ambient
+        ambientLight = new THREE.AmbientLight(0xffffff, 1.5); //white light
+        ambientLight.castShadow = true;
+        scene.add(ambientLight);
+
+        // Point
+        lampLight = new THREE.PointLight(0xd67002, 2); //orange light
+        lampLight.position.set(-145, -27, 75);
+        lampLight.castShadow = true;
+        scene.add(lampLight);
+
+        // Spotlights
+        batLight1 = new THREE.SpotLight(0xffffff, 3); //white light
+        batLight1.position.set(-116, -75, 8);
+        batLight1.angle = Math.PI / 3;
+        batLight1.penumbra = 0;
+        batLight1.target = coneMesh_3;
+        batLight1.castShadow = true;
+        scene.add(batLight1);
+
+        batLight2 = new THREE.SpotLight(0xffffff, 3); //white light
+        batLight2.position.set(-94, -75, 8);
+        batLight2.angle = Math.PI / 3;
+        batLight2.penumbra = 0;
+        batLight2.target = coneMesh_3;
+        batLight2.castShadow = true;
+        scene.add(batLight2);
+
+        // Fenyek - end
+
+
+        // Texturak - begin
+
+        // Ut textura
+        let textureLoader = new THREE.TextureLoader();
+        let roadTexture = textureLoader.load('road.jpg');
+        roadMaterial.map = roadTexture;
+
+        // Boja textura
+        let coneTexture = textureLoader.load('traffic_cone.jpg');
+        coneMaterial.map = coneTexture;
+
+        // Textura - end
+
+
+        // Kamera fokusz
+        camera.lookAt(gantryGroup.position.x, gantryGroup.position.y, gantryGroup.position.z);
+
+        // Kamera mozgatas
+        controls = new TrackballControls(camera, renderer.domElement);
+        controls.rotateSpeed = 5.0;
+        controls.panSpeed = 1.0;
+
+        // Ablak atmeretezes kezelo meghivasa
+        window.addEventListener('resize', handleWindowResize, false);
+
+        // Billenytu lenyomas kezelo meghivasa
+        window.addEventListener('keypress', handleKeyPress);
+
+        // Animaciot futtato metodus meghivasa
+        animate();
+    }
+
+
+    function handleKeyPress(event) {
+        // Billentyu lenyomas kezeles
+        let char = event.which || event.keyCode;
+
+        // Lampa kezelo
+        if (char === '1'.charCodeAt(0)) {
+            if (!lampLight.intensity) {
+                lampLight.intensity = 2;
+            }
+            else lampLight.intensity = 0;
+        }
+
+        // Batmobile fenyszoro kezelo
+        if (char === '2'.charCodeAt(0)) {
+            if (!batLight1.intensity && !batLight2.intensity) {
+                batLight1.intensity = 3;
+                batLight2.intensity = 3;
+            }
+            else {
+                batLight1.intensity = 0;
+                batLight2.intensity = 0;
+            }
+        }
+
+        // Napszak kezelo
+        if (char === '3'.charCodeAt(0)) {
+            if(ambientLight.intensity === 0.0025) {
+                // Nappal
+                renderer.setClearColor(0x87ceeb, 1.0);
+                ambientLight.intensity = 1.5;
+            }
+            else {
+                // Ejszaka
+                renderer.setClearColor(0x000000, 1.0);
+                ambientLight.intensity = 0.0025;
+            }
+        }
+
+        // Szoveg kezelo
+        if (char === 'i'.charCodeAt(0)) {
+            if (!controlsDiv.innerHTML) {
+                controlsDiv.innerHTML = controlsText;
+            }
+            else {
+                controlsDiv.innerHTML = '';
+            }
+        }
+
+        // Batmobile kezelo
+        if (char === 'w'.charCodeAt(0)) {
+            if (batmobileGroup.position.y <= 100) {
+                batmobileGroup.position.y += 1;
+                batLight1.position.y += 1;
+                batLight2.position.y += 1;
+            }
+        }
+
+        if (char === 's'.charCodeAt(0)) {
+            if (batmobileGroup.position.y >= -20) {
+                batmobileGroup.position.y -= 1;
+                batLight1.position.y -= 1;
+                batLight2.position.y -= 1;
+            }
+        }
+    }
+
+
+    function handleWindowResize() {
+        // Ablak atmeretezes kezelo
+        HEIGHT = window.innerHeight;
+        WIDTH = window.innerWidth;
+        renderer.setSize(WIDTH, HEIGHT);
+        camera.aspect = WIDTH / HEIGHT;
+        camera.updateProjectionMatrix();
+
+        render();
+    }
+
+
+    // Render fps lassito metodus
+    function sleep(milliseconds) {
+        const date = Date.now();
+        let currentDate = null;
+        do {
+            currentDate = Date.now();
+        } while (currentDate - date < milliseconds);
+    }
+
+
+    function animate() {
+        let delta = clock.getDelta();
+
+        // Uj kepkocka rajzolas keres
+        requestAnimationFrame(animate);
+
+        // Kameramozgatas kezeles
+        controls.update(delta);
+
+        // Animacio
+
+        // Kocsi elore megy
+        if (penguinGroup.position.y <= -10 && !turned) {
+            penguinGroup.position.x -= 0.25;
+            penguinGroup.position.y += 0.5;
+        }
+        // Kocsi megall majd fordul
+        else if (!turned && !reverse) {
+            penguinGroup.rotation.z -= 0.01;
+            idx++;
+            if (idx === 100) {
+                turned = true;
+                idx = 0;
+            }
+        }
+
+        // Kocsi fordulas utan elore megy
+        if (penguinGroup.position.y <= 75 && turned && !reverse) {
+            penguinGroup.position.x += 0.25;
+            penguinGroup.position.y += 0.5;
+        }
+        // Kocsi tolatas megadasa
+        else if (turned) {
+            reverse = true;
+        }
+
+        // Kocsi tolat
+        if (reverse && penguinGroup.position.y > -10) {
+            penguinGroup.position.x -= 0.25;
+            penguinGroup.position.y -= 0.5;
+        }
+        // Kocsi megall majd visszafordul
+        else if (!turnedBack && reverse) {
+            penguinGroup.rotation.z += 0.01;
+            idx++;
+            if (idx === 100) {
+                turnedBack = true;
+                idx = 0;
+            }
+        }
+
+        // Kocsi tolat tovabb
+        if (penguinGroup.position.y >= -155 && turnedBack) {
+            penguinGroup.position.x += 0.25;
+            penguinGroup.position.y -= 0.5;
+        }
+        // Animacio restart
+        else if (turnedBack) {
+            turned = false;
+            reverse = false;
+            turnedBack = false;
+        }
+
+        // Render fps lassitas
+        sleep(20);
+
+        // Uj képkocka rajzolas
+        render();
+    }
+
+
+    function loader() {
+        let loader = new GLTFLoader();
+
+        // Blender object betoltese es szerkesztese
+        loader.load(
+            'traffic_gantry.gltf',
+
+            function (gltf) {
+
+                gltf.scene.traverse(function(node) {
+                    if (node.isMesh) {node.receiveShadow = true;}
+                });
+
+                gantryGroup = gltf.scene;
+                gantryGroup.scale.set(17, 17, 17);
+                gantryGroup.position.set(100, 85, 4);
+                gantryGroup.rotation.set(1.1, 1.5, 0.5);
+
+                scene.add(gantryGroup);
+            });
+    }
+
+
+    function render() {
+        renderer.shadowMap.enabled = true;
+        renderer.render(scene, camera);
+    }
+
+</script>
+</body>
+</html>
